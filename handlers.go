@@ -13,6 +13,7 @@ import (
 // RegisterHandler обрабатывает регистрацию нового пользователя
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		log.Printf("Invalid method %s for /register", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -55,34 +56,40 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	existingUserPtr, err := GetUserByEmail(req.Email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
+			log.Printf("No existing user with email %s, proceeding with registration", req.Email)
 			existingUserPtr = nil // Пользователь не найден, продолжать регистрацию с новым email
 		} else { // Обработка других ошибок БД
+			log.Printf("Error checking existing user by email: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	if existingUserPtr != nil {
-		log.Printf("User with E-mail %s already exists", existingUserPtr.Email)
+		log.Printf("User with E-mail %s already exists,checking credentials", existingUserPtr.Email)
 	} else {
 		hashedPassword, err := HashPassword(req.Password)
 		if err != nil {
-			http.Error(w, "Internal server error/HashPassword", http.StatusInternalServerError)
+			log.Printf("Error hashing password: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		// Создать пользователя в БД
 		newUserPtr, err := CreateUser(req.Email, req.Username, hashedPassword)
 		if err != nil {
-			http.Error(w, "Internal server error/CreateUser", http.StatusInternalServerError)
+			log.Printf("Error creating user: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		log.Printf("New user created with email %s and username %s and hashed password %s", newUserPtr.Email, newUserPtr.Username, hashedPassword)
 		existingUserPtr = newUserPtr
 	}
 	// Сгенерировать JWT токен
 	tokenStr, err := GenerateToken(existingUserPtr)
 	if err != nil {
-		http.Error(w, "Internal server error/2", http.StatusInternalServerError)
+		log.Printf("Error generating token: %v, email %s", err, existingUserPtr.Email)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
