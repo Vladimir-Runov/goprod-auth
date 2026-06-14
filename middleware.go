@@ -1,18 +1,14 @@
 package main
 
 import (
+	"context"
 	"net/http"
-	// TODO: Добавьте необходимые импорты:
-	// "context"
-	// "strings"
+	"strings"
 )
 
 // AuthMiddleware проверяет JWT токен и устанавливает контекст пользователя
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Реализуйте проверку JWT токена
-		//
-		// Что нужно сделать:
 		// 1. Импортируйте "context" и "strings"
 		// 2. Получите заголовок Authorization из запроса
 		// 3. Проверьте, что заголовок не пустой
@@ -20,31 +16,37 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// 5. Валидируйте токен с помощью ValidateToken() из auth.go
 		// 6. Добавьте данные пользователя в контекст запроса
 		// 7. Передайте управление следующему обработчику
-		//
 		// Если токен невалиден - верните 401 Unauthorized
 		// Если токен отсутствует - верните 401 Unauthorized
-		//
-		// Используйте:
-		// - r.Header.Get("Authorization")
-		// - strings.TrimPrefix(authHeader, "Bearer ")
-		// - context.WithValue(r.Context(), "userID", claims.UserID)
-		// - next.ServeHTTP(w, r.WithContext(ctx))
 
-		// Временная заглушка - УДАЛИТЕ после реализации!
-		http.Error(w, "Middleware not implemented", http.StatusNotImplemented)
+		authHeader := r.Header.Get("Authorization")
+
+		if authHeader == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized) // 401 Unauthorized
+			return
+		}
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized) // 401 Unauthorized
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		claims, err := ValidateToken(tokenString)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized) // 401 Unauthorized
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "ID", claims.ID) //	Добавляем данные пользователя в контекст запроса
+		r = r.WithContext(ctx)                                 // Обновляем запрос с новым контекстом
+		next.ServeHTTP(w, r)                                   // Передайте управление следующему обработчику
 	}
 }
 
 // GetUserIDFromContext извлекает ID пользователя из контекста
 func GetUserIDFromContext(r *http.Request) (int, bool) {
-	// TODO: Реализуйте извлечение userID из контекста
-	//
-	// Что нужно сделать:
-	// 1. Используйте r.Context().Value("userID")
-	// 2. Проведите type assertion к int
-	// 3. Верните значение и булевый флаг успешности
-	//
-	// Пример: userID, ok := r.Context().Value("userID").(int)
+	userID, ok := r.Context().Value("ID").(int)
+	return userID, ok
 
-	return 0, false
 }
