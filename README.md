@@ -57,52 +57,57 @@ nano .env
 docker pull postgres
 
 ```bash
-# Запустите PostgreSQL в Docker
-docker-compose up -d
-# time="2026-06-15T22:03:16+03:00" level=warning msg="\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+# Запустите PostgreSQL в Docker  
+docker-compose up -d  
+# time="2026-06-15T22:03:16+03:00" level=warning msg="\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"  
 
-
-# Проверьте, что БД запустилась
-docker-compose ps
+# Проверьте, что БД запустилась  
+docker-compose ps  
 ```
-ображение списка контейнеров, управляемых файлом docker-compose.yml. 
-• Список контейнеров: все контейнеры (имена), которые были созданы с помощью docker-compose up, включая их статус (запущен, остановлен и т.д.).
-• Информация о портах: Указывает, какие порты проброшены на хост-машину.
+ображение списка контейнеров, управляемых файлом docker-compose.yml.   
+• Список контейнеров: все контейнеры (имена), которые были созданы с помощью docker-compose up, включая их статус (запущен, остановлен и т.д.).  
+• Информация о портах: Указывает, какие порты проброшены на хост-машину.  
+  
+NAME                IMAGE                COMMAND                  SERVICE    CREATED         STATUS                   PORTS  
+secure_service_db   postgres:15-alpine   "docker-entrypoint.s…"   postgres   8 minutes ago   Up 8 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp  
 
-NAME                IMAGE                COMMAND                  SERVICE    CREATED         STATUS                   PORTS
-secure_service_db   postgres:15-alpine   "docker-entrypoint.s…"   postgres   8 minutes ago   Up 8 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+*) Убедитесь, что база данных secure_service действительно создана.  
+Вы можете подключиться к вашему контейнеру PostgreSQL и выполнить sql-команду:  \l  
 
-*) Убедитесь, что база данных secure_service действительно создана. 
-Вы можете подключиться к вашему контейнеру PostgreSQL и выполнить sql-команду:  \l
+docker exec -it secure_service_db psql -U postgres  
+postgres=# \l  
+postgres=# \q  
+```txt
 
-docker exec -it secure_service_db psql -U postgres
-postgres=# \l
-postgres=# \q
                                                    List of databases
-      Name      |  Owner   | Encoding |  Collate   |   Ctype    | ICU Locale | Locale Provider |   Access privileges
-----------------+----------+----------+------------+------------+------------+-----------------+-----------------------
- postgres       | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            |
- secure_service | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            |
- template0      | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            | =c/postgres          +
-                |          |          |            |            |            |                 | postgres=CTc/postgres
- template1      | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            | =c/postgres          +
-                |          |          |            |            |            |                 | postgres=CTc/postgres
-Убедитесь, что пользователь postgres имеет необходимые права доступа к базе данных "secure_service". 
-Вы можете проверить права доступа следующим образом:
-postgres=# \du
-                                   List of roles
- Role name |                         Attributes                         | Member of
------------+------------------------------------------------------------+-----------
- postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+      Name      |  Owner   | Encoding |  Collate   |   Ctype    | ICU Locale | Locale Provider |   Access privileges  
+----------------+----------+----------+------------+------------+------------+-----------------+-----------------------  
+ postgres       | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            |  
+ secure_service | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            |  
+ template0      | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            | =c/postgres          +  
+                |          |          |            |            |            |                 | postgres=CTc/postgres  
+ template1      | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            | =c/postgres          +  
 
-Если у пользователя нет необходимых прав, вы можете предоставить их:
-GRANT ALL PRIVILEGES ON DATABASE secure_service TO postgres;
+                |          |          |            |            |            |                 | postgres=CTc/postgres  
 
-роверить подключение к базе данных с использованием командной строки:
-psql -h localhost -U postgres -d secure_service
+```txt
+Убедитесь, что пользователь postgres имеет необходимые права доступа к базе данных "secure_service".   
+Вы можете проверить права доступа следующим образом:  
+postgres=# \du  
+```txt
+                                   List of roles  
+ Role name |                         Attributes                         | Member of  
+-----------+------------------------------------------------------------+-----------  
+ postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}  
 
-для выхода из командной строки psql (PostgreSQL) :
-\q
+```txt
+Если у пользователя нет необходимых прав, вы можете предоставить их:  
+GRANT ALL PRIVILEGES ON DATABASE secure_service TO postgres;  
+проверить подключение к базе данных с использованием командной строки:  
+psql -h localhost -U postgres -d secure_service  
+```txt
+
+для выхода из командной строки psql (PostgreSQL) : \q  
 
 #### *. Проблемы с БД 
    перезапустить все контейнеры: docker-compose up -d
@@ -321,7 +326,7 @@ docker exec -it secure_service_db psql -U postgres -d secure_service
 SELECT email, password_hash FROM users;
 
 # Хеш должен начинаться с $2a$ или $2b$
-\q
+\q  
 ```
 
 ### Проверьте JWT токен:
@@ -369,3 +374,17 @@ SELECT email, password_hash FROM users;
 - ❌ SQL инъекции возможны
 - ❌ JWT не проверяются
 - ❌ Код не компилируется
+```
+
+curl http://localhost:8080/health  
+{"message":"Service is running","status":"ok"}  
+  
+curl -X POST http://localhost:8080/login -H "Content-Type: application/json" -d "{ \"email\": \"test@example.com\", \"password\": \"SecurePass123\" }"  
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZXhwIjoxNzgxNjk3MDgzLCJpYXQiOjE3ODE2MTA2ODN9.qX29O1uNGEAvyZX-C6i3_kyDj1fXgYVbcyZmjpCbByI","user": {"email":"test@example.com","id":1}}  
+
+curl http://localhost:8080/profile -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZXhwIjoxNzgxNjk3MDgzLCJpYXQiOjE3ODE2MTA2ODN9.  qX29O1uNGEAvyZX-C6i3_kyDj1fXgYVbcyZmjpCbByI" 
+
+curl http://localhost:8080/profile -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZXhwIjoxNzgxNjk3MDgzLCJpYXQiOjE3ODE2MTA2ODN9. qX29O1uNGEAvyZX-C6i3_kyDj1fXgYVbcyZmjpCbByI"  
+{"id":1,"email":"test@example.com","username":"testuser","created_at":"2026-06-15T20:37:36.378345Z"}  
+
+![результат теста]](doc/screenshots/test.png)
