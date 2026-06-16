@@ -305,13 +305,13 @@ http.HandleFunc("/profile", AuthMiddleware(ProfileHandler))
 ## ✅ Чек-лист перед сдачей
 
 - [✔] PostgreSQL запускается через `docker-compose up`
-- [ ] Приложение подключается к БД и не падает
-- [ ] Регистрация создает пользователя в БД
-- [ ] Пароли хранятся как bcrypt хеш, НЕ в открытом виде
-- [ ] Вход возвращает валидный JWT токен
+- [✔] Приложение подключается к БД и не падает
+- [✔] Регистрация создает пользователя в БД
+- [✔] Пароли хранятся как bcrypt хеш, НЕ в открытом виде
+- [✔] Вход возвращает валидный JWT токен
 - [ ] Токен можно декодировать на https://jwt.io
 - [ ] Эндпоинт `/profile` требует токен (без токена → 401)
-- [ ] Эндпоинт `/profile` работает с правильным токеном
+- [✔] Эндпоинт `/profile` работает с правильным токеном
 - [✔] **ВСЕ** SQL запросы используют параметры `$1, $2...`
 - [✔] В коде НЕТ `fmt.Sprintf` для построения SQL
 
@@ -327,12 +327,27 @@ SELECT email, password_hash FROM users;
 
 # Хеш должен начинаться с $2a$ или $2b$
 \q  
+
+```txt
+docker exec -it secure_service_db psql -U postgres -d secure_service  
+psql (15.18)  
+Type "help" for help.  
+```txt
+secure_service=# SELECT email, password_hash FROM users;  
+      email       |                        password_hash  
+------------------+--------------------------------------------------------------  
+ test@example.com | $2a$10$aF6cjlRy7vRjV/MnOuPz/OAUQ88Ive8ii5n7ZvbUTh.eSU59XnRga  
+(1 row)  
+```txt
+secure_service=#  
 ```
 
 ### Проверьте JWT токен:
 1. Скопируйте токен из ответа `/login`
 2. Вставьте на https://jwt.io
 3. Убедитесь, что содержит `user_id`, `email`, `username`
+
+![Результат выполнения](doc/screenshots/jwt_webtoken.png)`
 
 ## 🆘 Получение помощи
 
