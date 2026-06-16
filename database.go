@@ -125,7 +125,7 @@ func GetUserByID(userID int) (*User, error) {
 	query := `SELECT id, email, username, created_at FROM users WHERE id = $1`
 
 	var user User
-	err := db.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Username, &user.PasswordHash, &user.CreatedAt) // Считайте все поля в структуру User с помощью Scan()
+	err := db.QueryRow(query, userID).Scan(&user.ID, &user.Email, &user.Username, &user.CreatedAt) // Считайте все поля в структуру User с помощью Scan()
 	if err != nil {
 		if err == sql.ErrNoRows { // Если пользователь не найден, возвращаем nil и ошибку
 			return nil, ErrUserNotFound //  nil для пользователя и ErrUserNotFound  для ошибки, чтобы указать на отсутствие пользователя

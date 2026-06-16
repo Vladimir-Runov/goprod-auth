@@ -36,7 +36,7 @@ type AuthResponse struct {
 
 // Claims структура для JWT токена
 type Claims struct {
-	UserID   int    `json:"user_id"`
+	UserID   int    `json:"user_id"` // при генерации токена записывается ID пользователя.
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims

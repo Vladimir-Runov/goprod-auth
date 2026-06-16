@@ -93,7 +93,6 @@ func CheckPassword(password, hash string) bool {
 //return "", fmt.Errorf("not implemented - реализуйте генерацию JWT токена")
 
 func GenerateToken(userPtr *User) (string, error) {
-
 	claims := Claims{
 		UserID:           userPtr.ID,
 		Email:            userPtr.Email,
@@ -127,7 +126,7 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		// 4. Верни jwtSecret как ключ для проверки подписи
+		// 4. Верните jwtSecret как ключ для проверки подписи
 		return jwtSecret, nil
 	})
 
@@ -148,7 +147,7 @@ func ValidateToken(tokenString string) (*Claims, error) {
 			}
 		}
 	}
-	log.Printf("auth.ValidateToken claims: %v", claims)
+	log.Printf("\t\t claims: %v", claims)
 	return claims, nil
 }
 

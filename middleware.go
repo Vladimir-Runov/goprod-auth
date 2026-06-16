@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+// Также лучше использовать единый понятный ключ, например что-то вроде userID, а не “ID”, потому что “ID” слишком общее имя.
+// Ещё лучше в реальном проекте использовать отдельный тип для ключа контекста, чтобы избежать случайных пересечений.
+type contextKey string
+
+const userIDKey contextKey = "userID"
+
 // AuthMiddleware проверяет JWT токен и устанавливает контекст пользователя
 // 1. Импортируйте "context" и "strings"
 // 2. Получите заголовок Authorization из запроса
@@ -35,24 +41,29 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		log.Printf("\t\t calling ValidateToken  %v ", tokenString)
 		claims, err := ValidateToken(tokenString)
+		log.Printf("\t\t calling ValidateToken  %v claims.UserID=%v", tokenString, claims.UserID)
 		if err != nil {
 			log.Printf("\t\t token not valid! ")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized) // 401 Unauthorized
 			return
 		}
 		log.Printf("\t\t oK! claims: %v ", claims)
-		ctx := context.WithValue(r.Context(), "ID", claims.ID) //	Добавляем данные пользователя в контекст запроса
-		r = r.WithContext(ctx)                                 // Обновляем запрос с новым контекстом
-		next.ServeHTTP(w, r)                                   // Передайте управление следующему обработчику
+
+		ctx := context.WithValue(r.Context(), userIDKey, claims.UserID) //	Добавляем ИД-пользователя в контекст запроса
+		//В Claims у вас есть поле UserID, куда при генерации токена действительно записывается ID пользователя. Но в middleware вы берёте claims.ID.
+		// Это не ваш UserID, а поле ID из встроенной структуры jwt.RegisteredClaims, то есть JWT ID (jti). Вы его нигде не заполняете, поэтому оно пустое. Дальше вы кладёте это значение в контекст под ключом “ID”, а затем в GetUserIDFromRequestContext пытаетесь достать его как int. Так как в контексте лежит не int, а фактически пустая строка, приведение типа не проходит, ok становится false, а userID остаётся равным нулю. Именно поэтому в логе появляется userID(0), а затем ProfileHandler no userID.
+		//Здесь нужно использовать именно пользовательский ID из claims, то есть поле UserID, и класть в контекст его.
+		// Но главная причина вашей текущей ошибки конкретно такая: в middleware используется claims.ID вместо claims.UserID.
+
+		r = r.WithContext(ctx) // Обновляем запрос с новым контекстом
+		next.ServeHTTP(w, r)   // Передайте управление следующему обработчику
 	}
 }
 
 // GetUserIDFromContext извлекает ID пользователя из контекста
 func GetUserIDFromRequestContext(r *http.Request) (int, bool) {
-	log.Printf("GetUserIDFromContextEx : r.Context(%v) ", r.Context().Value)
-	userID, ok := r.Context().Value("ID").(int)
+	userID, ok := r.Context().Value(userIDKey).(int)
 	log.Printf("GetUserIDFromContextEx : userID(%v) ", userID)
 	return userID, ok
 
