@@ -7,31 +7,32 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 )
 
 // RegisterHandler обрабатывает регистрацию нового пользователя
+// 1. Распарсите JSON из тела запроса в структуру RegisterRequest
+// 2. Проведите валидацию данных (email, username, password)
+// 3. Проверьте, что пользователь с таким email не существует
+// 4. Захешируйте пароль с помощью функции HashPassword()
+// 5. Создайте пользователя в БД с помощью CreateUser()
+// 6. Сгенерируйте JWT токен с помощью GenerateToken()
+// 7. Верните ответ с токеном и данными пользователя
+//
+// Подсказки:
+// - Используйте json.NewDecoder(r.Body).Decode() для парсинга JSON
+// - Проверьте что все обязательные поля заполнены
+// - При ошибках возвращайте соответствующие HTTP статусы
+// - 400 для невалидных данных, 409 для дубликатов, 500 для внутренних ошибок
+// - Не забудьте установить Content-Type: application/json для ответа
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("RegisterHandler: method %s, Body %s", r.Method, r.Body)
 	if r.Method != http.MethodPost {
 		log.Printf("Invalid method %s for /register", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	// Пошаговый план:
-	// 1. Распарсите JSON из тела запроса в структуру RegisterRequest
-	// 2. Проведите валидацию данных (email, username, password)
-	// 3. Проверьте, что пользователь с таким email не существует
-	// 4. Захешируйте пароль с помощью функции HashPassword()
-	// 5. Создайте пользователя в БД с помощью CreateUser()
-	// 6. Сгенерируйте JWT токен с помощью GenerateToken()
-	// 7. Верните ответ с токеном и данными пользователя
-	//
-	// Подсказки:
-	// - Используйте json.NewDecoder(r.Body).Decode() для парсинга JSON
-	// - Проверьте что все обязательные поля заполнены
-	// - При ошибках возвращайте соответствующие HTTP статусы
-	// - 400 для невалидных данных, 409 для дубликатов, 500 для внутренних ошибок
-	// - Не забудьте установить Content-Type: application/json для ответа
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -68,6 +69,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if existingUserPtr != nil {
 		log.Printf("User with E-mail %s already exists,checking credentials", existingUserPtr.Email)
 	} else {
+		log.Printf("creating a new User")
 		hashedPassword, err := HashPassword(req.Password)
 		if err != nil {
 			log.Printf("Error hashing password: %v", err)
@@ -100,30 +102,32 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Token: tokenStr,
 		User:  *existingUserPtr,
 	}
+	log.Printf("RegisterHandler token: %s return", tokenStr)
 	json.NewEncoder(w).Encode(response)
 	//http.Error(w, "Registration not implemented", http.StatusNotImplemented)
 }
 
 // LoginHandler обрабатывает вход пользователя
+// 1. Распарсите JSON из тела запроса в структуру LoginRequest
+// 2. Проведите базовую валидацию (email и password не пустые)
+// 3. Найдите пользователя по email с помощью GetUserByEmail()
+// 4. Проверьте пароль с помощью CheckPassword()
+// 5. Сгенерируйте JWT токен с помощью GenerateToken()
+// 6. Верните ответ с токеном и данными пользователя
+//
+// Важные моменты безопасности:
+// - При неверном email или пароле возвращайте одинаковое сообщение
+//   "Invalid email or password" чтобы не раскрывать существование email
+// - Используйте HTTP статус 401 для неверных учетных данных
+// - Не возвращайте password_hash в ответе
+
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("handlers.LoginHandler(%v)", r.Body)
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Пошаговый план:
-	// 1. Распарсите JSON из тела запроса в структуру LoginRequest
-	// 2. Проведите базовую валидацию (email и password не пустые)
-	// 3. Найдите пользователя по email с помощью GetUserByEmail()
-	// 4. Проверьте пароль с помощью CheckPassword()
-	// 5. Сгенерируйте JWT токен с помощью GenerateToken()
-	// 6. Верните ответ с токеном и данными пользователя
-	//
-	// Важные моменты безопасности:
-	// - При неверном email или пароле возвращайте одинаковое сообщение
-	//   "Invalid email or password" чтобы не раскрывать существование email
-	// - Используйте HTTP статус 401 для неверных учетных данных
-	// - Не возвращайте password_hash в ответе
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -145,13 +149,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// 3. Найдите пользователя по email с помощью GetUserByEmail()
 	user, err := GetUserByEmail(loginReq.Email)
 	if err != nil {
-		// Не раскрываем информацию о том, существует ли пользователь
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		if err == ErrUserNotFound {
+			log.Printf("\t\tGetUserByEmail returned error (user not found): %v", err)
+			// Не раскрываем информацию о том, существует ли пользователь
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		} else { // error DB!
+			log.Printf("\t\tGetUserByEmail returned error: %v", err)
+			http.Error(w, "Invalid email or password (?)", http.StatusUnauthorized)
+		}
 		return
 	}
 
 	// 4. Проверьте пароль с помощью CheckPassword()
-	if !CheckPassword(user.PasswordHash, loginReq.Password) {
+	if !CheckPassword(loginReq.Password, user.PasswordHash) {
 		// Не раскрываем информацию о том, существует ли пользователь
 		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
 		return
@@ -181,33 +191,28 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ProfileHandler возвращает профиль текущего пользователя
+// 1. Получите ID пользователя из контекста с помощью GetUserIDFromContext()
+// 2. Загрузите данные пользователя из БД с помощью GetUserByID()
+// 3. Верните данные пользователя в JSON формате
+//
+// Примечания:
+// - Этот обработчик вызывается только после AuthMiddleware
+// - Контекст уже должен содержать userID
+// - Если пользователь не найден - верните 404
+// - Не включайте password_hash в ответ
+
 func ProfileHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("ProfileHandler Metod (%v) %v ", r.Method, r)
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// TODO: Реализуйте получение профиля пользователя
-	//
-	// Пошаговый план:
-	// 1. Получите ID пользователя из контекста с помощью GetUserIDFromContext()
-	// 2. Загрузите данные пользователя из БД с помощью GetUserByID()
-	// 3. Верните данные пользователя в JSON формате
-	//
-	// Примечания:
-	// - Этот обработчик вызывается только после AuthMiddleware
-	// - Контекст уже должен содержать userID
-	// - Если пользователь не найден - верните 404
-	// - Не включайте password_hash в ответ
-
-	if r.Method != http.MethodGet {
+		log.Printf("ProfileHandler Method <>get")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Получите ID пользователя из контекста
-	userID, ok := GetUserIDFromContext(r)
+	userID, ok := GetUserIDFromRequestContext(r)
 	if !ok {
+		log.Printf("ProfileHandler no userID")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -234,8 +239,18 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	//	http.Error(w, "Profile not implemented", http.StatusNotImplemented)
 }
 
+func ExitHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("ExitHandler(%v). Server is shutting down... ", r.Body)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Shutting down server...")) // Send response before exiting
+	CloseDB()
+	os.Exit(0) // Note: os.Exit will terminate the program immediately, so any deferred functions will not run.
+}
+
 // HealthHandler проверяет состояние сервиса
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("HealthHandler(%v)", r.Body)
 	// Проверяем подключение к БД
 	if db != nil {
 		if err := db.Ping(); err != nil {
@@ -251,6 +266,33 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Service is running",
 	}
 	json.NewEncoder(w).Encode(response)
+}
+
+// UsersHandler обрабатывает запросы для получения списка пользователей
+func UsersListHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("UsersListHandler(%v)", r.Body)
+	// Проверяем подключение к БД
+	if db != nil {
+		if err := db.Ping(); err != nil {
+			http.Error(w, "Database connection failed", http.StatusServiceUnavailable)
+			return
+		}
+	}
+
+	// Получаем всех пользователей
+	users, err := GetAllUsers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get users: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Устанавливаем заголовок для ответа
+	w.Header().Set("Content-Type", "text/plain")
+
+	// Формируем ответ с пользователями, разделенными табуляцией
+	for _, user := range users {
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", user.ID, user.Email, user.Username, user.PasswordHash, user.CreatedAt)
+	}
 }
 
 // sendJSONResponse отправляет JSON ответ (вспомогательная функция)

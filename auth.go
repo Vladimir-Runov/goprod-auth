@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"time"
@@ -48,17 +49,14 @@ func InitAuth() {
 }
 
 // HashPassword хеширует пароль с использованием bcrypt
-func HashPassword(password string) (string, error) {
-	// TODO: Реализуйте хеширование пароля
-	//
-	// Что нужно сделать:
-	// 1. Импортируйте "golang.org/x/crypto/bcrypt"
-	// 2. Используйте bcrypt.GenerateFromPassword()
-	// 3. Передайте []byte(password) и bcrypt.DefaultCost
-	// 4. Обработайте ошибку и верните результат как string
-	//
-	// Документация: https://pkg.go.dev/golang.org/x/crypto/bcrypt#GenerateFromPassword
+// 1. Импортируйте "golang.org/x/crypto/bcrypt"
+// 2. Используйте bcrypt.GenerateFromPassword()
+// 3. Передайте []byte(password) и bcrypt.DefaultCost
+// 4. Обработайте ошибку и верните результат как string
 
+// Документация: https://pkg.go.dev/golang.org/x/crypto/bcrypt#GenerateFromPassword
+
+func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -69,36 +67,32 @@ func HashPassword(password string) (string, error) {
 }
 
 // CheckPassword проверяет пароль против хеша
-func CheckPassword(password, hash string) bool {
-	// TODO: Реализуйте проверку пароля
-	//
-	// Что нужно сделать:
-	// 1. Используйте bcrypt.CompareHashAndPassword()
-	// 2. Передайте []byte(hash) и []byte(password)
-	// 3. Верните true если ошибки нет, false если есть
-	//
-	// Документация: https://pkg.go.dev/golang.org/x/crypto/bcrypt#CompareHashAndPassword
+// 1. Используйте bcrypt.CompareHashAndPassword()
+// 2. Передайте []byte(hash) и []byte(password)
+// 3. Верните true если ошибки нет, false если есть
+//
+// Документация: https://pkg.go.dev/golang.org/x/crypto/bcrypt#CompareHashAndPassword
 
+func CheckPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	log.Printf("auth.CheckPassword(password:%v , hash:%v\t=>\t%v)", password, hash, (err == nil))
 	return err == nil
 
 }
 
 // GenerateToken создает JWT токен для пользователя
+// 1. Импортируйте "time" и "github.com/golang-jwt/jwt/v5"
+// 2. Создайте Claims структуру с данными пользователя
+//    - Заполните UserID, Email, Username
+//    - Установите ExpiresAt на 24 часа вперед: jwt.NewNumericDate(time.Now().Add(24 * time.Hour))
+//    - Установите IssuedAt на текущее время: jwt.NewNumericDate(time.Now())
+// 3. Создайте токен с помощью jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+// 4. Подпишите токен с помощью token.SignedString(jwtSecret)
+//
+// Документация: https://pkg.go.dev/github.com/golang-jwt/jwt/v5
+//return "", fmt.Errorf("not implemented - реализуйте генерацию JWT токена")
+
 func GenerateToken(userPtr *User) (string, error) {
-	// TODO: Реализуйте генерацию JWT токена
-	//
-	// Что нужно сделать:
-	// 1. Импортируйте "time" и "github.com/golang-jwt/jwt/v5"
-	// 2. Создайте Claims структуру с данными пользователя
-	//    - Заполните UserID, Email, Username
-	//    - Установите ExpiresAt на 24 часа вперед: jwt.NewNumericDate(time.Now().Add(24 * time.Hour))
-	//    - Установите IssuedAt на текущее время: jwt.NewNumericDate(time.Now())
-	// 3. Создайте токен с помощью jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// 4. Подпишите токен с помощью token.SignedString(jwtSecret)
-	//
-	// Документация: https://pkg.go.dev/github.com/golang-jwt/jwt/v5
-	//return "", fmt.Errorf("not implemented - реализуйте генерацию JWT токена")
 
 	claims := Claims{
 		UserID:           userPtr.ID,
@@ -115,17 +109,18 @@ func GenerateToken(userPtr *User) (string, error) {
 	}
 
 	return tokenString, nil
-
 }
 
 // ValidateToken проверяет и парсит JWT токен
+// 2. Используйте jwt.ParseWithClaims() для парсинга токена
+// 3. В keyFunc проверьте, что алгоритм подписи HMAC (*jwt.SigningMethodHMAC)
+// 4. Верните jwtSecret как ключ для проверки подписи
+// 5. Проверьте, что токен валиден (token.Valid)
+// 6. Верните claims и ошибку
+
 func ValidateToken(tokenString string) (*Claims, error) {
+	log.Printf("auth.ValidateToken(%v)", tokenString)
 	claims := &Claims{} // 1. Создайте пустую структуру claims := &Claims{}
-	// 2. Используйте jwt.ParseWithClaims() для парсинга токена
-	// 3. В keyFunc проверьте, что алгоритм подписи HMAC (*jwt.SigningMethodHMAC)
-	// 4. Верните jwtSecret как ключ для проверки подписи
-	// 5. Проверьте, что токен валиден (token.Valid)
-	// 6. Верните claims и ошибку
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		// 3. В keyFunc проверь, что алгоритм подписи HMAC
@@ -137,10 +132,12 @@ func ValidateToken(tokenString string) (*Claims, error) {
 	})
 
 	if err != nil {
+		log.Printf("auth.ValidateToken err != nil")
 		return nil, err
 	}
 
 	if !token.Valid {
+		log.Printf("auth.ValidateToken !token.Valid ")
 		return nil, fmt.Errorf("invalid token")
 	}
 
@@ -151,14 +148,14 @@ func ValidateToken(tokenString string) (*Claims, error) {
 			}
 		}
 	}
-
-	return claims, nil // 6. Верни claims и ошибку
-	//return nil, fmt.Errorf("not implemented - реализуйте валидацию JWT токена")
+	log.Printf("auth.ValidateToken claims: %v", claims)
+	return claims, nil
 }
 
 // ValidatePassword проверяет требования к паролю
 // Базовая проверка, возвращает ошибку если пароль не соответствует требованиям
 func ValidatePassword(password string) error {
+	log.Printf("auth.ValidatePassword(%v)", password)
 	if len(password) < 8 {
 		return fmt.Errorf("password must be at least 8 characters long")
 	}
@@ -203,9 +200,6 @@ func ValidateEmail(email string) error {
 	if email == "" {
 		return fmt.Errorf("email is required")
 	}
-
-	// TODO: Добавьте более строгую валидацию email если необходимо
-	// Можно использовать regexp.MatchString() для проверки формата
 
 	const emailRegex = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	matched, err := regexp.MatchString(emailRegex, email)

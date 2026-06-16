@@ -50,15 +50,63 @@ nano .env
 ```
 
 ### 2. Запуск базы данных
+```
+# Запустить Docker desctop
+# скачать первый образ PostgreSQL
+
+docker pull postgres
 
 ```bash
 # Запустите PostgreSQL в Docker
 docker-compose up -d
+# time="2026-06-15T22:03:16+03:00" level=warning msg="\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
 
 # Проверьте, что БД запустилась
 docker-compose ps
 ```
+ображение списка контейнеров, управляемых файлом docker-compose.yml. 
+• Список контейнеров: все контейнеры (имена), которые были созданы с помощью docker-compose up, включая их статус (запущен, остановлен и т.д.).
+• Информация о портах: Указывает, какие порты проброшены на хост-машину.
 
+NAME                IMAGE                COMMAND                  SERVICE    CREATED         STATUS                   PORTS
+secure_service_db   postgres:15-alpine   "docker-entrypoint.s…"   postgres   8 minutes ago   Up 8 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+
+*) Убедитесь, что база данных secure_service действительно создана. 
+Вы можете подключиться к вашему контейнеру PostgreSQL и выполнить sql-команду:  \l
+
+docker exec -it secure_service_db psql -U postgres
+postgres=# \l
+postgres=# \q
+                                                   List of databases
+      Name      |  Owner   | Encoding |  Collate   |   Ctype    | ICU Locale | Locale Provider |   Access privileges
+----------------+----------+----------+------------+------------+------------+-----------------+-----------------------
+ postgres       | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            |
+ secure_service | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            |
+ template0      | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            | =c/postgres          +
+                |          |          |            |            |            |                 | postgres=CTc/postgres
+ template1      | postgres | UTF8     | en_US.utf8 | en_US.utf8 |            | libc            | =c/postgres          +
+                |          |          |            |            |            |                 | postgres=CTc/postgres
+Убедитесь, что пользователь postgres имеет необходимые права доступа к базе данных "secure_service". 
+Вы можете проверить права доступа следующим образом:
+postgres=# \du
+                                   List of roles
+ Role name |                         Attributes                         | Member of
+-----------+------------------------------------------------------------+-----------
+ postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+
+Если у пользователя нет необходимых прав, вы можете предоставить их:
+GRANT ALL PRIVILEGES ON DATABASE secure_service TO postgres;
+
+роверить подключение к базе данных с использованием командной строки:
+psql -h localhost -U postgres -d secure_service
+
+для выхода из командной строки psql (PostgreSQL) :
+\q
+
+#### *. Проблемы с БД 
+   перезапустить все контейнеры: docker-compose up -d
+   Если изменили файл docker-compose.yml и хотите применить изменения (обновить конфигурацию): docker-compose up -d --build
 ### 3. Установка зависимостей
 
 ```bash
@@ -251,7 +299,7 @@ http.HandleFunc("/profile", AuthMiddleware(ProfileHandler))
 
 ## ✅ Чек-лист перед сдачей
 
-- [ ] PostgreSQL запускается через `docker-compose up`
+- [✔] PostgreSQL запускается через `docker-compose up`
 - [ ] Приложение подключается к БД и не падает
 - [ ] Регистрация создает пользователя в БД
 - [ ] Пароли хранятся как bcrypt хеш, НЕ в открытом виде
@@ -259,8 +307,8 @@ http.HandleFunc("/profile", AuthMiddleware(ProfileHandler))
 - [ ] Токен можно декодировать на https://jwt.io
 - [ ] Эндпоинт `/profile` требует токен (без токена → 401)
 - [ ] Эндпоинт `/profile` работает с правильным токеном
-- [ ] **ВСЕ** SQL запросы используют параметры `$1, $2...`
-- [ ] В коде НЕТ `fmt.Sprintf` для построения SQL
+- [✔] **ВСЕ** SQL запросы используют параметры `$1, $2...`
+- [✔] В коде НЕТ `fmt.Sprintf` для построения SQL
 
 ## 🔍 Проверка безопасности
 
@@ -291,13 +339,11 @@ SELECT email, password_hash FROM users;
    docker-compose up -d
    docker-compose logs postgres
    ```
-
 2. **Ошибки компиляции**
    ```bash
    go mod tidy
    go mod download
    ```
-
 3. **Сервер не запускается**
    - Проверьте .env файл
    - Убедитесь, что JWT_SECRET длиннее 32 символов

@@ -19,7 +19,7 @@ func main() {
 
 	// TODO: Инициализация подключения к базе данных
 	// Используйте функцию InitDB() из database.go
-	if err := InitDB(); err != nil {
+	if err := InitSecureDB(); err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer CloseDB()
@@ -30,6 +30,11 @@ func main() {
 	http.HandleFunc("/login", LoginHandler)
 	http.HandleFunc("/profile", AuthMiddleware(ProfileHandler))
 	http.HandleFunc("/health", HealthHandler)
+
+	//todo:  will be removed in pruduction!  debug ver. only
+	http.HandleFunc("/lst", UsersListHandler)
+	http.HandleFunc("/exit", ExitHandler)
+	// <<<
 
 	// Запуск сервера
 	port := getEnv("SERVER_PORT", "8080")
